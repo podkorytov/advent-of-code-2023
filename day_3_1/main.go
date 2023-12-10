@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"unicode"
 )
 
 func readFile(filePath string) ([][]rune, error) {
@@ -30,12 +31,12 @@ func readFile(filePath string) ([][]rune, error) {
 }
 
 func findNumberAtCoordinates(matrix [][]rune, i, j int) (startCoord [2]int, value int, found bool) {
-	if i < 0 || i >= len(matrix) || j < 0 || j >= len(matrix[0]) {
+	if i < 0 || i >= len(matrix) || j < 0 || j >= len(matrix[i]) {
 		// Coordinates out of bounds
 		return
 	}
 
-	if matrix[i][j] < '0' || matrix[i][j] > '9' {
+	if !unicode.IsDigit(matrix[i][j]) {
 		// Not a number at the specified coordinates
 		return
 	}
@@ -43,15 +44,19 @@ func findNumberAtCoordinates(matrix [][]rune, i, j int) (startCoord [2]int, valu
 	// Initialize start coordinates to current coordinates
 	startCoord = [2]int{i, j}
 
-	// Read the entire number
-	numStr := ""
-	for i < len(matrix) && matrix[i][j] >= '0' && matrix[i][j] <= '9' {
-		numStr += string(matrix[i][j])
-		j++
+	// Read the entire number backward
+	for startCoord[1] >= 0 && unicode.IsDigit(matrix[i][startCoord[1]]) {
+		startCoord[1]--
+	}
+
+	// Read the entire number forward
+	endCoord := j + 1
+	for endCoord < len(matrix[i]) && unicode.IsDigit(matrix[i][endCoord]) {
+		endCoord++
 	}
 
 	// Parse the number
-	num, err := strconv.Atoi(numStr)
+	num, err := strconv.Atoi(string(matrix[i][startCoord[1]+1 : endCoord]))
 	if err != nil {
 		// Failed to convert to an integer
 		return
@@ -60,7 +65,7 @@ func findNumberAtCoordinates(matrix [][]rune, i, j int) (startCoord [2]int, valu
 	return startCoord, num, true
 }
 
-func processCoordinates(matrix [][]rune, i, j int, uniqueStartCoords map[[2]int]struct{}, result int) {
+func processCoordinates(matrix [][]rune, i, j int, uniqueStartCoords map[[2]int]struct{}, result int) int {
 	var directions = [][2]int{
 		{-1, -1}, {-1, 0}, {-1, 1},
 		{0, -1}, {0, 1},
@@ -73,18 +78,16 @@ func processCoordinates(matrix [][]rune, i, j int, uniqueStartCoords map[[2]int]
 			coordKey := [2]int{startCoord[0], startCoord[1]}
 			if _, exists := uniqueStartCoords[coordKey]; !exists {
 				uniqueStartCoords[coordKey] = struct{}{}
-
-				fmt.Printf("Found unique number at coordinates (%d, %d):\n", i, j)
-				fmt.Printf("Start coordinates: (%d, %d)\n", startCoord[0], startCoord[1])
-				fmt.Printf("Number value: %d\n", num)
 				result += num
 			}
 		}
 	}
+
+	return result
 }
 
 func main() {
-	filePath := "input.txt" 
+	filePath := "input.txt"
 	matrix, err := readFile(filePath)
 	if err != nil {
 		fmt.Println("Error reading file:", err)
@@ -97,7 +100,7 @@ func main() {
 	for i, row := range matrix {
 		for j, cell := range row {
 			if cell != '.' && (cell < '0' || cell > '9') {
-				processCoordinates(matrix, i, j, uniqueStartCoords, result)
+				result = processCoordinates(matrix, i, j, uniqueStartCoords, result)
 			}
 		}
 	}
